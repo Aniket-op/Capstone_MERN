@@ -41,7 +41,7 @@ const NotificationSidebar = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className={`fixed top-0 right-0 h-full w-96 bg-gradient-to-b from-gray-50 to-white shadow-2xl border-l border-gray-200 transform transition-transform duration-300 ease-in-out z-50 ${
+      className={`fixed top-0 right-0 h-full w-96 bg-white from-gray-50 to-white shadow-2xl border-l border-gray-200 transform transition-transform duration-300 ease-in-out z-50 ${
         isOpen ? "translate-x-0" : "translate-x-full"
       }`}
     >
@@ -60,12 +60,7 @@ const NotificationSidebar = ({ isOpen, onClose }) => {
       <div className="p-5 overflow-y-auto h-[calc(100%-64px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center mt-20 text-gray-500">
-            <img
-              src="https://illustrations.popsy.co/gray/notification.svg"
-              alt="No notifications"
-              className="w-40 mb-4 opacity-80"
-            />
-            <p className="text-center">You’re all caught up! 🎉</p>
+            <p className="text-center">You' re all caught up! 🎉</p>
           </div>
         ) : (
           notifications.map((n) => (
