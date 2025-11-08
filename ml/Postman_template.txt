@@ -1,0 +1,496 @@
+{
+  "info": {
+    "name": "Solar Panel Cleaning API Tests",
+    "description": "Complete test suite for solar panel cleaning detection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": [""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Debug Features",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/debug/features",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["debug", "features"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/history",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["history"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Normal Operations (True Negatives)",
+      "item": [
+        {
+          "name": "Test 1: Clean Panels - Optimal Conditions",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.5,\n    \"module_temp\": 45.2,\n    \"irradiation\": 850.0,\n    \"dc_power\": 12500.0,\n    \"daily_yield\": 45.3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 2: Clean Panels - High Irradiation",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T13:00:00\",\n    \"ambient_temp\": 30.0,\n    \"module_temp\": 48.0,\n    \"irradiation\": 1000.0,\n    \"dc_power\": 14500.0,\n    \"daily_yield\": 52.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 3: Clean Panels - Morning",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T09:00:00\",\n    \"ambient_temp\": 22.0,\n    \"module_temp\": 35.0,\n    \"irradiation\": 600.0,\n    \"dc_power\": 8500.0,\n    \"daily_yield\": 15.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dirty Panels (True Positives)",
+      "item": [
+        {
+          "name": "Test 4: Yellow Alert - Minor Dirt (8% loss)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.5,\n    \"module_temp\": 45.2,\n    \"irradiation\": 850.0,\n    \"dc_power\": 11500.0,\n    \"daily_yield\": 42.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 5: Orange Alert - Moderate Dirt (16% loss)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.5,\n    \"module_temp\": 45.2,\n    \"irradiation\": 850.0,\n    \"dc_power\": 10500.0,\n    \"daily_yield\": 38.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 6: Red Alert - Heavy Dirt (25% loss)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.5,\n    \"module_temp\": 45.2,\n    \"irradiation\": 850.0,\n    \"dc_power\": 9400.0,\n    \"daily_yield\": 34.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases & Validation",
+      "item": [
+        {
+          "name": "Test 7: Low Irradiation - Should Reject",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 20.0,\n    \"module_temp\": 22.0,\n    \"irradiation\": 50.0,\n    \"dc_power\": 100.0,\n    \"daily_yield\": 0.5\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 8: Night Time - Should Reject",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T22:00:00\",\n    \"ambient_temp\": 18.0,\n    \"module_temp\": 18.5,\n    \"irradiation\": 0.0,\n    \"dc_power\": 0.0,\n    \"daily_yield\": 45.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 9: Sensor Error - Module Temp Too Low",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 30.0,\n    \"module_temp\": 20.0,\n    \"irradiation\": 850.0,\n    \"dc_power\": 12500.0,\n    \"daily_yield\": 45.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 10: Extreme Irradiation - Should Reject",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.0,\n    \"module_temp\": 45.0,\n    \"irradiation\": 2000.0,\n    \"dc_power\": 15000.0,\n    \"daily_yield\": 50.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "False Positive Prevention",
+      "item": [
+        {
+          "name": "Test 11: Extreme Heat - Temperature Correction",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T14:00:00\",\n    \"ambient_temp\": 42.0,\n    \"module_temp\": 68.0,\n    \"irradiation\": 950.0,\n    \"dc_power\": 10800.0,\n    \"daily_yield\": 40.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 12: Cloudy Day - Low Confidence",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 25.0,\n    \"module_temp\": 32.0,\n    \"irradiation\": 350.0,\n    \"dc_power\": 4000.0,\n    \"daily_yield\": 20.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 13: Inverter Clipping - Max Capacity",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 25.0,\n    \"module_temp\": 40.0,\n    \"irradiation\": 1100.0,\n    \"dc_power\": 15000.0,\n    \"daily_yield\": 55.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Batch Predictions",
+      "item": [
+        {
+          "name": "Test 14: Batch - Mixed Conditions",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"readings\": [\n        {\n            \"timestamp\": \"2024-11-08T09:00:00\",\n            \"ambient_temp\": 22.0,\n            \"module_temp\": 35.0,\n            \"irradiation\": 600.0,\n            \"dc_power\": 8500.0,\n            \"daily_yield\": 15.0\n        },\n        {\n            \"timestamp\": \"2024-11-08T12:00:00\",\n            \"ambient_temp\": 28.5,\n            \"module_temp\": 45.2,\n            \"irradiation\": 850.0,\n            \"dc_power\": 10500.0,\n            \"daily_yield\": 38.0\n        },\n        {\n            \"timestamp\": \"2024-11-08T15:00:00\",\n            \"ambient_temp\": 30.0,\n            \"module_temp\": 48.0,\n            \"irradiation\": 700.0,\n            \"dc_power\": 9000.0,\n            \"daily_yield\": 42.0\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict/batch",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict", "batch"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Maintenance & Reset",
+      "item": [
+        {
+          "name": "Test 15: Start Maintenance Mode",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/maintenance/start",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["maintenance", "start"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 16: Predict During Maintenance (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.5,\n    \"module_temp\": 45.2,\n    \"irradiation\": 850.0,\n    \"dc_power\": 12500.0,\n    \"daily_yield\": 45.3\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 17: End Maintenance Mode",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/maintenance/end",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["maintenance", "end"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 18: Confirm Cleaning (Reset History)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/cleaning/confirmed",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["cleaning", "confirmed"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 19: Reset History",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/reset",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["reset"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Boundary Testing",
+      "item": [
+        {
+          "name": "Test 20: Minimum Valid Irradiation (100 W/m²)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T08:30:00\",\n    \"ambient_temp\": 20.0,\n    \"module_temp\": 25.0,\n    \"irradiation\": 100.0,\n    \"dc_power\": 1200.0,\n    \"daily_yield\": 5.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 21: Maximum Valid Irradiation (1500 W/m²)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 32.0,\n    \"module_temp\": 55.0,\n    \"irradiation\": 1500.0,\n    \"dc_power\": 15000.0,\n    \"daily_yield\": 60.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test 22: Zero Power Output",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"timestamp\": \"2024-11-08T12:00:00\",\n    \"ambient_temp\": 28.0,\n    \"module_temp\": 30.0,\n    \"irradiation\": 850.0,\n    \"dc_power\": 0.0,\n    \"daily_yield\": 20.0\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/predict",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["predict"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

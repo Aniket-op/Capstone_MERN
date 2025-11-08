@@ -13,7 +13,6 @@ def train_and_save_model(data_path: str):
     print("📂 Loading data...")
     df = pd.read_csv(data_path)
     
-    # Feature engineering
     print("🔧 Creating features...")
     
     # Time features
@@ -99,5 +98,4 @@ def train_and_save_model(data_path: str):
     return model, feature_cols
 
 if __name__ == "__main__":
-    # Update with your data path
     train_and_save_model("Training_Data.csv")
