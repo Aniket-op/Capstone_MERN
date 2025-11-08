@@ -22,6 +22,7 @@ export const signup = async (req, res) => {
         email: user.email,
         token: generateToken(user._id),
       });
+      // res.status(201).cookie(token ,generateToken(user._id))
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
