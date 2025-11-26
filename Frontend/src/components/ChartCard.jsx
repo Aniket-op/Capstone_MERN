@@ -1,7 +1,10 @@
-const ChartCard = ({ title, children }) => {
+const ChartCard = ({ title, subtitle, children }) => {
   return (
-    <div className="bg-white shadow-md rounded p-4 mb-4">
-      <h2 className="font-semibold text-gray-500 mb-2">{title}</h2>
+    <div className="bg-white shadow-md rounded-xl p-6">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">{title}</h2>
+        {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+      </div>
       {children}
     </div>
   );
