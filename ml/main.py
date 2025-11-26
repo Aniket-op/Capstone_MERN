@@ -203,6 +203,22 @@ class SolarPanelModel:
         if self.model is None:
             raise ValueError("Model not loaded!")
         
+        # ✅ CHECK MAINTENANCE MODE FIRST (before other validations)
+        if self.maintenance_mode:
+            return {
+                'status': 'unknown',
+                'needs_cleaning': False,
+                'confidence': 0.0,
+                'predicted_power': None,
+                'actual_power': float(data.dc_power),
+                'power_loss_percentage': 0.0,
+                'message': 'System in maintenance mode. Predictions disabled.',
+                'recommendation': 'Cannot determine cleaning status under current conditions',
+                'estimated_energy_loss_kwh': 0.0,
+                'consecutive_bad_readings': 0,
+                'timestamp': datetime.now().isoformat()
+            }
+            
         validation_result = self._validate_conditions(data)
         if not validation_result['valid']:
             return {

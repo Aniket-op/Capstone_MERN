@@ -1,0 +1,261 @@
+{
+	"info": {
+		"_postman_id": "solar-panel-api-collection",
+		"name": "Solar Panel MERN API",
+		"description": "Complete API collection for Solar Panel Management System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/signup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "signup"]
+						},
+						"description": "Register a new user account"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"auth_token\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with email and password. Token is automatically saved to environment."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Solar Data",
+			"item": [
+				{
+					"name": "Get All Solar Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/solar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "solar"]
+						},
+						"description": "Get all solar data records (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Post Solar Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"temperature\": 28.5,\n  \"humidity\": 65.2,\n  \"current\": 12.5,\n  \"solarIrradiance\": 850.3,\n  \"powerGeneration\": 4.2,\n  \"powerActual\": 4.1,\n  \"powerPredicted\": 4.3,\n  \"panelEfficiency\": 92.5,\n  \"dailyYield\": 18.5,\n  \"cleaningDays\": 3,\n  \"createdAt\": \"2024-01-15T10:30:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/solar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "solar"]
+						},
+						"description": "Create a new solar data record (requires authentication)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Demo Solar Data",
+			"item": [
+				{
+					"name": "Get Demo Solar Data",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/demo/solar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "demo", "solar"]
+						},
+						"description": "Get demo solar data (public endpoint, no authentication required). Returns mock data if database is empty."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Demo Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/demo/solar/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "demo", "solar", "notifications"]
+						},
+						"description": "Get demo notifications (public endpoint, no authentication required)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "Get All Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications"]
+						},
+						"description": "Get all notifications for the logged-in user (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Solar panel cleaning recommended\",\n  \"type\": \"cleaning\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications"]
+						},
+						"description": "Create a new notification (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"accepted\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notifications/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "notification_id_here",
+									"description": "Notification ID to update"
+								}
+							]
+						},
+						"description": "Update notification status (accepted/rejected) (requires authentication)"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
