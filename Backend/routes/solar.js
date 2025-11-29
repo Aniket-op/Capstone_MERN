@@ -1,5 +1,5 @@
 import express from "express";
-import SolarData from "../models/solarData.js";
+import SolarData from "../models/SolarData.js";
 
 const router = express.Router();
 

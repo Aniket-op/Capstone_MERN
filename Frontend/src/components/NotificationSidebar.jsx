@@ -12,9 +12,11 @@ const NotificationSidebar = ({ isOpen, onClose }) => {
         const { data } = await axios.get("http://localhost:5000/api/notifications", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        setNotifications(data);
+        const list = Array.isArray(data) ? data : data?.data || [];
+        setNotifications(list);
       } catch (err) {
         console.error("Error fetching notifications:", err);
+        setNotifications([]);
       }
     };
     fetchNotifications();
@@ -22,8 +24,8 @@ const NotificationSidebar = ({ isOpen, onClose }) => {
 
   const handleResponse = async (id, response) => {
     try {
-      await axios.post(
-        `http://localhost:5000/api/notifications/respond/${id}`,
+      await axios.put(
+        `http://localhost:5000/api/notifications/${id}/respond`,
         { response },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
