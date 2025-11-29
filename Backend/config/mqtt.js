@@ -9,6 +9,7 @@ const mqttConfig = {
   topics: {
     sensorData: process.env.MQTT_TOPIC_SENSOR || "solar/sensor/data",
     command: process.env.MQTT_TOPIC_COMMAND || "solar/command",
+    response: process.env.MQTT_TOPIC_RESPONSE || "solar/response",
   },
   options: {
     clientId: `solar_backend_${Math.random().toString(16).slice(3)}`,

@@ -8,6 +8,9 @@ export const createNotification = async (data) => {
       message: data.message,
       status: "pending",
       userId: data.userId || null, // Optional: link to specific user
+      fullMLMessage: data.fullMLMessage || null, // Store full ML server response
+      powerLoss: data.powerLoss || null,
+      mlStatus: data.status || null, // normal, yellow, orange, red
     });
 
     const saved = await notification.save();

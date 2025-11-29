@@ -63,6 +63,36 @@ connectDB();
 // Connect to MQTT
 mqttService.connect();
 
+// Scheduled task to request hardware data every hour
+let dataRequestInterval = null;
+
+const requestHardwareData = () => {
+  if (mqttService.isConnected) {
+    mqttService.publishCommand({
+      action: "REQUEST_DATA",
+      timestamp: new Date().toISOString(),
+      source: "backend_scheduler"
+    });
+    console.log("📡 Requested hardware data via MQTT");
+  } else {
+    console.log("⚠️ MQTT not connected, skipping data request");
+  }
+};
+
+// Start requesting data every hour (3600000 ms = 1 hour)
+// Wait 30 seconds after server starts to ensure MQTT is connected
+setTimeout(() => {
+  // Request data immediately on first connection
+  requestHardwareData();
+  
+  // Then request every hour
+  dataRequestInterval = setInterval(() => {
+    requestHardwareData();
+  }, 36000); // 1 hour = 3600000 milliseconds
+  
+  console.log("⏰ Scheduled data requests: Every 1 hour");
+}, 30000); // Wait 30 seconds before starting
+
 // Socket.IO connection
 io.on("connection", (socket) => {
   console.log(`✅ Client connected: ${socket.id}`);
@@ -104,6 +134,13 @@ httpServer.listen(PORT, () => {
 // Graceful shutdown
 process.on("SIGINT", () => {
   console.log("\n🛑 Shutting down gracefully...");
+  
+  // Clear the data request interval
+  if (dataRequestInterval) {
+    clearInterval(dataRequestInterval);
+    console.log("🛑 Stopped scheduled data requests");
+  }
+  
   mqttService.disconnect();
   process.exit(0);
 });

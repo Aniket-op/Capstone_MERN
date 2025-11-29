@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import Navbar from "../components/Navbar";
 import ChartCard from "../components/ChartCard";
 import NotificationSidebar from "../components/NotificationSidebar";
+import ToastContainer from "../components/ToastContainer";
 import { Zap, Sun, Thermometer, Droplet } from "lucide-react";
 import {
   LineChart,
@@ -23,30 +25,123 @@ const Dashboard = () => {
   const [solarData, setSolarData] = useState([]);
   const [latest, setLatest] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
+  // Socket.IO connection for real-time updates
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data } = await axios.get(
-          "http://localhost:5000/api/demo/solar",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-        setSolarData(data);
-        if (data.length > 0) setLatest(data[data.length - 1]);
-      } catch (err) {
-        console.error("Error fetching solar data:", err);
+    const socket = io("http://localhost:5000", {
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to Socket.IO server");
+    });
+
+    // Listen for ML server messages
+    socket.on("mlMessage", (data) => {
+      console.log("📨 ML Message received:", data);
+      
+      // Determine toast type based on status
+      let toastType = "info";
+      if (data.status === "red") toastType = "error";
+      else if (data.status === "orange") toastType = "warning";
+      else if (data.status === "yellow") toastType = "warning";
+      else if (data.status === "normal") toastType = "success";
+
+      // Create full message with all details
+      const fullMessage = `Status: ${data.status.toUpperCase()}\n` +
+        `Message: ${data.message}\n` +
+        `Recommendation: ${data.recommendation}\n` +
+        `Confidence: ${(data.confidence * 100).toFixed(1)}%\n` +
+        `Power Loss: ${data.power_loss_percentage?.toFixed(2) || 0}%\n` +
+        `Estimated Energy Loss: ${data.estimated_energy_loss_kwh?.toFixed(2) || 0} kWh\n` +
+        `Needs Cleaning: ${data.needs_cleaning ? "Yes" : "No"}`;
+
+      // Show toast notification
+      if (window.showToast) {
+        window.showToast(fullMessage, toastType, 8000); // Show for 8 seconds
       }
+    });
+
+    // Listen for solar data updates
+    socket.on("solarDataUpdate", (data) => {
+      console.log("📊 Solar data update received:", data);
+      // Refresh data will be handled by the polling interval
+    });
+
+    // Listen for cleaning alerts
+    socket.on("cleaningAlert", (alert) => {
+      console.log("🚨 Cleaning alert:", alert);
+      if (window.showToast) {
+        window.showToast(
+          `🚨 ${alert.message}\n${alert.recommendation}`,
+          "warning",
+          10000
+        );
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected from Socket.IO server");
+    });
+
+    return () => {
+      socket.disconnect();
     };
+  }, []);
+
+  // Fetch data function
+  const fetchData = async () => {
+    try {
+      // Fetch real data from database (not demo data)
+      const response = await axios.get(
+        "http://localhost:5000/api/solar?limit=100",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
+      // Handle API response format: {success: true, data: [...]}
+      const data = response.data?.data || response.data || [];
+      setSolarData(data);
+      if (data.length > 0) {
+        // Get the most recent record (first in sorted array)
+        setLatest(data[0]);
+      }
+      console.log("✅ Fetched solar data:", data.length, "records");
+    } catch (err) {
+      console.error("❌ Error fetching solar data:", err.response?.data || err.message);
+      // Fallback to demo data if real data fails
+      try {
+        const { data } = await axios.get("http://localhost:5000/api/demo/solar");
+        const demoData = Array.isArray(data) ? data : [];
+        setSolarData(demoData);
+        if (demoData.length > 0) setLatest(demoData[demoData.length - 1]);
+        console.log("⚠️ Using demo data as fallback");
+      } catch (fallbackErr) {
+        console.error("❌ Fallback also failed:", fallbackErr);
+      }
+    }
+  };
+
+  // Fetch data on mount and set up polling
+  useEffect(() => {
     fetchData();
+    
+    // Poll for updates every 5 seconds
+    const interval = setInterval(fetchData, 5000);
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   console.log(solarData);
   return (
     <div className="bg-gray-100 min-h-screen">
+      <ToastContainer />
       <Navbar onNotificationClick={() => setShowNotifications(true)} />
       <NotificationSidebar
         isOpen={showNotifications}

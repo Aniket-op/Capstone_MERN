@@ -7,6 +7,7 @@ class MQTTService {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    this.pendingRequests = new Map(); // Track sent requests
   }
 
   // Connect to MQTT broker
@@ -27,21 +28,80 @@ class MQTTService {
           console.log(`📡 Subscribed to: ${mqttConfig.topics.sensorData}`);
         }
       });
+
+      // Subscribe to response topic (if hardware publishes responses)
+      const responseTopic = mqttConfig.topics.response || "solar/response";
+      this.client.subscribe(responseTopic, (err) => {
+        if (err) {
+          console.error("❌ MQTT response subscription error:", err);
+        } else {
+          console.log(`📡 Subscribed to response topic: ${responseTopic}`);
+        }
+      });
     });
 
     this.client.on("message", async (topic, message) => {
       try {
-        console.log(`📨 Received message on ${topic}`);
+        const messageStr = message.toString();
+        const timestamp = new Date().toISOString();
         
-        // Parse incoming sensor data
-        const sensorData = JSON.parse(message.toString());
-        console.log("📊 Sensor Data:", sensorData);
+        console.log(`\n📨 ===== MQTT MESSAGE RECEIVED =====`);
+        console.log(`📅 Timestamp: ${timestamp}`);
+        console.log(`📌 Topic: ${topic}`);
+        console.log(`📦 Raw Message: ${messageStr}`);
+        
+        // Try to parse as JSON
+        let parsedData;
+        try {
+          parsedData = JSON.parse(messageStr);
+          console.log(`✅ Parsed JSON:`, JSON.stringify(parsedData, null, 2));
+        } catch (parseError) {
+          console.log(`⚠️ Message is not JSON, raw text: ${messageStr}`);
+          parsedData = { raw: messageStr };
+        }
 
-        // Process data (save to DB + ML prediction)
-        await processSensorData(sensorData);
+        // Check if this is a response to a request
+        if (parsedData.requestId || parsedData.responseTo) {
+          const requestId = parsedData.requestId || parsedData.responseTo;
+          const pendingRequest = this.pendingRequests.get(requestId);
+          
+          if (pendingRequest) {
+            const responseTime = Date.now() - pendingRequest.sentAt;
+            console.log(`\n🔄 RESPONSE TO REQUEST:`);
+            console.log(`   Request ID: ${requestId}`);
+            console.log(`   Original Command: ${JSON.stringify(pendingRequest.command)}`);
+            console.log(`   Response Time: ${responseTime}ms`);
+            console.log(`   Response Data:`, parsedData);
+            
+            // Remove from pending
+            this.pendingRequests.delete(requestId);
+          }
+        }
+
+        // Handle sensor data topic
+        if (topic === mqttConfig.topics.sensorData) {
+          console.log(`\n📊 Processing as Sensor Data...`);
+          const sensorData = parsedData;
+          console.log("📊 Sensor Data received:", JSON.stringify(sensorData, null, 2));
+
+          // Process data (save to DB + ML prediction)
+          try {
+            await processSensorData(sensorData);
+            console.log("✅ Sensor data processed successfully");
+          } catch (processError) {
+            console.error("❌ Error in processSensorData:", processError);
+          }
+        } else if (topic.includes("response")) {
+          console.log(`\n💬 This is a response message`);
+          // You can add specific response handling here
+        }
+        
+        console.log(`📨 ===== END MESSAGE =====\n`);
         
       } catch (error) {
         console.error("❌ Error processing MQTT message:", error);
+        console.error("   Topic:", topic);
+        console.error("   Message:", message.toString());
       }
     });
 
@@ -67,16 +127,49 @@ class MQTTService {
       return false;
     }
 
-    const payload = JSON.stringify(command);
-    this.client.publish(mqttConfig.topics.command, payload, { qos: 1 }, (err) => {
+    // Add request ID and timestamp to track responses
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const commandWithId = {
+      ...command,
+      requestId: requestId,
+      sentAt: new Date().toISOString()
+    };
+
+    // Store pending request
+    this.pendingRequests.set(requestId, {
+      command: command,
+      sentAt: Date.now(),
+      timestamp: new Date().toISOString()
+    });
+
+    const payload = JSON.stringify(commandWithId);
+    const topic = mqttConfig.topics.command;
+    
+    console.log(`\n📤 ===== PUBLISHING MQTT COMMAND =====`);
+    console.log(`📌 Topic: ${topic}`);
+    console.log(`🆔 Request ID: ${requestId}`);
+    console.log(`📦 Payload:`, JSON.stringify(commandWithId, null, 2));
+    
+    this.client.publish(topic, payload, { qos: 1 }, (err) => {
       if (err) {
-        console.error("❌ Failed to publish command:", err);
+        console.error(`❌ Failed to publish command:`, err);
+        this.pendingRequests.delete(requestId);
       } else {
-        console.log("✅ Command published:", command);
+        console.log(`✅ Command published successfully`);
+        console.log(`⏳ Waiting for response (Request ID: ${requestId})...`);
+        console.log(`📤 ===== END PUBLISH =====\n`);
+        
+        // Set timeout to remove pending request after 30 seconds if no response
+        setTimeout(() => {
+          if (this.pendingRequests.has(requestId)) {
+            console.log(`⏰ Timeout: No response received for Request ID: ${requestId}`);
+            this.pendingRequests.delete(requestId);
+          }
+        }, 30000);
       }
     });
 
-    return true;
+    return requestId;
   }
 
   // Disconnect
