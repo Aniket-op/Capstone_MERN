@@ -26,6 +26,10 @@ const Dashboard = () => {
   const [latest, setLatest] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [todayStats, setTodayStats] = useState({
+    todayYield: 0,
+    lastCleaningDays: null,
+  });
 
   // Socket.IO connection for real-time updates
   useEffect(() => {
@@ -90,6 +94,30 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Fetch today's stats
+  const fetchTodayStats = async () => {
+    try {
+      const response = await axios.get(
+        "http://localhost:5000/api/solar/today",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
+      if (response.data?.success) {
+        setTodayStats({
+          todayYield: response.data.todayYield || 0,
+          lastCleaningDays: response.data.lastCleaningDays,
+        });
+        console.log("✅ Today's stats fetched:", response.data);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching today's stats:", err);
+    }
+  };
+
   // Fetch data function
   const fetchData = async () => {
     try {
@@ -129,9 +157,13 @@ const Dashboard = () => {
   // Fetch data on mount and set up polling
   useEffect(() => {
     fetchData();
+    fetchTodayStats();
     
     // Poll for updates every 5 seconds
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(() => {
+      fetchData();
+      fetchTodayStats();
+    }, 5000);
     
     return () => {
       clearInterval(interval);
@@ -359,13 +391,21 @@ const Dashboard = () => {
             </div>
             <div className="bg-white shadow rounded-xl p-6 text-center">
               <h2 className="text-3xl font-bold text-blue-600 mb-2">
-                {latest ? `${latest.dailyYield} kWh` : "23.6 kWh"}
+                {todayStats.todayYield > 0 
+                  ? `${todayStats.todayYield.toFixed(2)} kWh` 
+                  : latest?.dailyYield 
+                    ? `${latest.dailyYield.toFixed(2)} kWh` 
+                    : "0.00 kWh"}
               </h2>
               <p className="text-gray-500 text-sm">Today's Yield</p>
             </div>
             <div className="bg-white shadow rounded-xl p-6 text-center">
               <h2 className="text-3xl font-bold text-orange-600 mb-2">
-                Last: {latest ? `${latest.cleaningDays} days` : "2 days"}
+                {todayStats.lastCleaningDays !== null 
+                  ? `Last: ${todayStats.lastCleaningDays} ${todayStats.lastCleaningDays === 1 ? 'day' : 'days'} ago`
+                  : latest?.cleaningDays !== undefined && latest.cleaningDays !== null
+                    ? `Last: ${latest.cleaningDays} ${latest.cleaningDays === 1 ? 'day' : 'days'} ago`
+                    : "No cleaning record"}
               </h2>
               <p className="text-gray-500 text-sm">Cleaning Status</p>
             </div>

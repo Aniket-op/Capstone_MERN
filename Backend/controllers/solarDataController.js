@@ -1,4 +1,5 @@
 import SolarData from "../models/SolarData.js";
+import Notification from "../models/Notification.js";
 import { getPrediction, checkMLServerHealth } from "../services/mlService.js";
 import { io } from "../server.js";
 
@@ -107,6 +108,85 @@ export const getSolarDataStats = async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: "Failed to calculate statistics" 
+    });
+  }
+};
+
+// Get today's yield and last cleaning status
+export const getTodayStats = async (req, res) => {
+  try {
+    // Get start of today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    // Get all records from today
+    const todayData = await SolarData.find({
+      createdAt: { $gte: todayStart }
+    }).sort({ createdAt: 1 });
+    
+    // Calculate today's total yield
+    let todayYield = 0;
+    if (todayData.length > 0) {
+      // Option 1: Use latest dailyYield if it's cumulative
+      const latestDailyYield = todayData[todayData.length - 1].dailyYield;
+      
+      // Option 2: Calculate from power generation (sum powerGeneration in kW, convert to kWh)
+      // Assuming data comes every few minutes, estimate total energy
+      // Power (kW) * time (hours) = Energy (kWh)
+      // For simplicity, if we have hourly data: sum(powerGeneration) / 1000 * hours
+      // Or use the latest dailyYield which should be cumulative
+      
+      if (latestDailyYield && latestDailyYield > 0) {
+        todayYield = latestDailyYield;
+      } else {
+        // Fallback: sum all powerGeneration values and estimate
+        // This is approximate - assumes data points represent hourly averages
+        const totalPower = todayData.reduce((sum, d) => sum + (d.powerGeneration || 0), 0);
+        // If data comes every 10 seconds, and we have X data points:
+        // Each point represents ~10 seconds of generation
+        // Convert: (power in W * time in hours) / 1000 = kWh
+        const hoursOfData = todayData.length * (10 / 3600); // Assuming 10 second intervals
+        todayYield = (totalPower * hoursOfData) / 1000; // Convert W to kW, then to kWh
+      }
+    }
+    
+    // Find last cleaning date from notifications (where userResponse === "yes")
+    const lastCleaning = await Notification.findOne({
+      userResponse: "yes"
+    }).sort({ updatedAt: -1 });
+    
+    let lastCleaningDays = null;
+    let lastCleaningDate = null;
+    
+    if (lastCleaning) {
+      lastCleaningDate = lastCleaning.updatedAt;
+      const daysSince = Math.floor((Date.now() - lastCleaningDate.getTime()) / (1000 * 60 * 60 * 24));
+      lastCleaningDays = daysSince;
+      console.log(`🧹 Last cleaning: ${daysSince} days ago (${lastCleaningDate.toISOString()})`);
+    } else {
+      // Fallback: check latest record's cleaningDays
+      if (todayData.length > 0) {
+        lastCleaningDays = todayData[todayData.length - 1].cleaningDays;
+        if (lastCleaningDays !== null && lastCleaningDays !== undefined) {
+          console.log(`🧹 Using cleaningDays from latest record: ${lastCleaningDays} days`);
+        }
+      }
+    }
+    
+    console.log(`📊 Today's yield: ${todayYield.toFixed(2)} kWh, Last cleaning: ${lastCleaningDays} days ago`);
+    
+    res.status(200).json({
+      success: true,
+      todayYield: parseFloat(todayYield.toFixed(2)),
+      lastCleaningDays: lastCleaningDays,
+      lastCleaningDate: lastCleaningDate,
+      dataPoints: todayData.length,
+    });
+  } catch (err) {
+    console.error("Error getting today's stats:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to get today's statistics" 
     });
   }
 };

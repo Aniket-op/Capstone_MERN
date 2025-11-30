@@ -15,6 +15,7 @@ import {
   getSolarData,
   getLatestSolarData,
   getSolarDataStats,
+  getTodayStats,
   postSolarData,
   getPredictionForData,
   deleteOldSolarData,
@@ -30,6 +31,7 @@ const router = express.Router();
 router.get("/", getSolarData);
 router.get("/latest", getLatestSolarData);
 router.get("/stats", getSolarDataStats);
+router.get("/today", getTodayStats);
 router.get("/chart", getChartData);
 router.get("/export", exportSolarData);
 
