@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
-import { XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { XCircle, ChevronDown, ChevronUp, X } from "lucide-react";
 
 const NotificationSidebar = ({ isOpen, onClose }) => {
   const [notifications, setNotifications] = useState([]);
@@ -129,6 +129,26 @@ const NotificationSidebar = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handle Delete - Remove notification (works even after YES/NO response)
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/notifications/${id}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      
+      // Remove from local state
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      
+      console.log("✅ Notification removed from sidebar");
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+      alert("Failed to delete notification. Please try again.");
+    }
+  };
+
   return (
     <div
       className={`fixed top-0 right-0 h-full w-96 bg-white from-gray-50 to-white shadow-2xl border-l border-gray-200 transform transition-transform duration-300 ease-in-out z-50 ${
@@ -183,11 +203,20 @@ const NotificationSidebar = ({ isOpen, onClose }) => {
             return (
               <div
                 key={n._id}
-                className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 mb-4 hover:shadow-md transition-shadow"
+                className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 mb-4 hover:shadow-md transition-shadow relative"
               >
+                {/* Delete Button (Cross) - Top Right */}
+                <button
+                  onClick={() => handleDelete(n._id)}
+                  className="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors p-1 rounded-full hover:bg-red-50"
+                  title="Delete notification"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
                 {/* Status Badge */}
                 {n.mlStatus && (
-                  <div className="mb-2">
+                  <div className="mb-2 pr-6">
                     <span
                       className={`text-xs font-semibold px-2 py-1 rounded-full ${
                         n.mlStatus === "red"

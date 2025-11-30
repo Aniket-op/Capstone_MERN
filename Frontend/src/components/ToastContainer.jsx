@@ -6,7 +6,7 @@ let toastIdCounter = 0;
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = useCallback((message, type = "info", duration = 5000) => {
+  const addToast = useCallback((message, type = "info", duration = 1000) => {
     const id = toastIdCounter++;
     const newToast = { id, message, type, duration };
     setToasts((prev) => [...prev, newToast]);
