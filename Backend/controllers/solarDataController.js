@@ -127,7 +127,7 @@ export const getTodayStats = async (req, res) => {
     // Calculate today's total yield
     let todayYield = 0;
     if (todayData.length > 0) {
-      // Option 1: Use latest dailyYield if it's cumulative
+      // First, try to use the latest dailyYield if it's set and > 0
       const latestDailyYield = todayData[todayData.length - 1].dailyYield;
       
       // Option 2: Calculate from power generation (sum powerGeneration in kW, convert to kWh)
@@ -162,7 +162,6 @@ export const getTodayStats = async (req, res) => {
       lastCleaningDate = lastCleaning.updatedAt;
       const daysSince = Math.floor((Date.now() - lastCleaningDate.getTime()) / (1000 * 60 * 60 * 24));
       lastCleaningDays = daysSince;
-      console.log(`🧹 Last cleaning: ${daysSince} days ago (${lastCleaningDate.toISOString()})`);
     } else {
       // Fallback: check latest record's cleaningDays
       if (todayData.length > 0) {
