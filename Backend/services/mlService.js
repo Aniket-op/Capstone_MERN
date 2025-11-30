@@ -84,7 +84,23 @@ export const processSensorData = async (sensorData) => {
       prediction: prediction,
     });
 
-    // Step 7: Emit ML server full message for toast notification
+    // Step 7: Create notification for ALL ML predictions (save to database)
+    console.log("📬 Creating notification for ML prediction...");
+    try {
+      await createNotification({
+        message: `${prediction.message} - ${prediction.recommendation}`,
+        status: prediction.status,
+        powerLoss: prediction.power_loss_percentage,
+        fullMLMessage: JSON.stringify(prediction, null, 2), // Store full ML response
+        userId: null, // System notification, not user-specific
+      });
+      console.log("✅ Notification saved to database");
+    } catch (notificationError) {
+      console.error("❌ Error creating notification:", notificationError);
+      // Continue even if notification creation fails
+    }
+
+    // Step 8: Emit ML server full message for toast notification
     io.emit("mlMessage", {
       message: prediction.message,
       recommendation: prediction.recommendation,
@@ -97,18 +113,10 @@ export const processSensorData = async (sensorData) => {
       fullMessage: `${prediction.message} - ${prediction.recommendation}`,
     });
 
-    // Step 5: Handle cleaning alerts
+    // Step 9: Handle cleaning alerts (for urgent cases)
     if (prediction.needs_cleaning) {
       console.log("🚨 Cleaning required!");
       
-      // Create notification with full ML message
-      await createNotification({
-        message: `${prediction.message} - ${prediction.recommendation}`,
-        status: prediction.status,
-        powerLoss: prediction.power_loss_percentage,
-        fullMLMessage: JSON.stringify(prediction, null, 2), // Store full ML response
-      });
-
       // Emit alert to frontend
       io.emit("cleaningAlert", {
         status: prediction.status,

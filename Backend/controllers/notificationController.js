@@ -9,15 +9,15 @@ import mqttService from "../services/mqttService.js";
 // Get all notifications
 export const getNotifications = async (req, res) => {
   try {
-    const { userId, status, limit = 50 } = req.query;
+    const { userId, status, limit = 7 } = req.query; // Default to 7 most recent
     
     const filter = {};
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
     
     const notifications = await Notification.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 }) // Most recent first
+      .limit(Math.min(parseInt(limit), 7)); // Max 7 notifications
     
     res.status(200).json({
       success: true,
@@ -101,22 +101,41 @@ export const respondToNotification = async (req, res) => {
       });
     }
     
+    // If NO, delete the notification
+    if (response === "no") {
+      const deleted = await Notification.findByIdAndDelete(id);
+      
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          message: "Notification not found",
+        });
+      }
+      
+      console.log("🗑️ Notification deleted (user rejected)");
+      
+      return res.status(200).json({
+        success: true,
+        message: "Notification deleted successfully",
+        deleted: true,
+      });
+    }
+    
+    // If YES, update notification and send cleaning command
     const notification = await updateNotificationResponse(id, response);
     
-    // If user confirms cleaning, send command to hardware
-    if (response === "yes") {
-      mqttService.publishCommand({
-        action: "START_CLEANING",
-        timestamp: new Date().toISOString(),
-        notificationId: id,
-      });
-      
-      console.log("🧹 Cleaning command sent to hardware");
-    }
+    // Send command to hardware
+    mqttService.publishCommand({
+      action: "START_CLEANING",
+      timestamp: new Date().toISOString(),
+      notificationId: id,
+    });
+    
+    console.log("🧹 Cleaning command sent to hardware");
     
     res.status(200).json({
       success: true,
-      message: `Notification ${response === "yes" ? "confirmed" : "rejected"}`,
+      message: "Notification confirmed - Cleaning command sent",
       data: notification,
     });
   } catch (err) {
