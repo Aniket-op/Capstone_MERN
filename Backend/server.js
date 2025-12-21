@@ -41,6 +41,9 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 
+// Increase max listeners to avoid warning from nodemon
+process.setMaxListeners(15);
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -106,6 +109,36 @@ io.on("connection", (socket) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/solar", solarDataRoutes);
 app.use("/api/notifications", notificationRoutes);
+
+// Root-level MQTT routes (matching test code for ESP32 compatibility)
+app.get("/latest", (req, res) => {
+  const latestMessage = mqttService.getLatestMessage();
+  if (!latestMessage) {
+    return res.json({ message: "No data received yet from ESP32" });
+  }
+  res.status(200).json({
+    status: "success",
+    timestamp: latestMessage.timestamp,
+    data: latestMessage.data,
+  });
+});
+
+app.post("/command", (req, res) => {
+  const { command } = req.body;
+  if (!command) {
+    return res.status(400).json({ error: "Missing command" });
+  }
+
+  const result = mqttService.publishCommand(command);
+  if (!result) {
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to send command",
+    });
+  }
+
+  res.json({ status: "success", sent: command });
+});
 
 // Health check
 app.get("/", (req, res) => {

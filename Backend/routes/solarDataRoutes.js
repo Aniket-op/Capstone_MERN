@@ -22,6 +22,8 @@ import {
   getMLServerStatus,
   getChartData,
   exportSolarData,
+  getLatestMQTTMessage,
+  sendCommandToESP32,
 } from "../controllers/solarDataController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 
@@ -34,6 +36,10 @@ router.get("/stats", getSolarDataStats);
 router.get("/today", getTodayStats);
 router.get("/chart", getChartData);
 router.get("/export", exportSolarData);
+
+// MQTT routes for ESP32 hardware
+router.get("/mqtt/latest", getLatestMQTTMessage); // Get latest MQTT message from ESP32
+router.post("/mqtt/command", sendCommandToESP32); // Send command to ESP32
 
 // Protected routes
 router.post("/", protect, postSolarData);

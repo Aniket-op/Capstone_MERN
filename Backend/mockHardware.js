@@ -11,16 +11,22 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// MQTT Configuration - Updated to match ESP32 hardware setup
+const host = process.env.MQTT_BROKER_HOST || "broker.emqx.io";
+const port = process.env.MQTT_PORT || "1883";
+const brokerUrl = `mqtt://${host}:${port}`;
+
 const mqttConfig = {
-  brokerUrl: process.env.MQTT_BROKER_URL || "mqtt://broker.hivemq.com",
-  port: process.env.MQTT_PORT || 1883,
+  brokerUrl: brokerUrl,
+  host: host,
+  port: port,
   topics: {
-    sensorData: process.env.MQTT_TOPIC_SENSOR || "solar/sensor/data",
-    command: process.env.MQTT_TOPIC_COMMAND || "solar/command",
-    response: process.env.MQTT_TOPIC_RESPONSE || "solar/response",
+    sensorData: process.env.MQTT_TOPIC_SENSOR || "esp32/sensor_data", // ESP32 publishes here
+    command: process.env.MQTT_TOPIC_COMMAND || "esp32/command", // Server sends control commands
+    response: process.env.MQTT_TOPIC_RESPONSE || "esp32/response",
   },
   options: {
-    clientId: `mock_hardware_${Math.random().toString(16).slice(3)}`,
+    clientId: `esp32_mock_${Math.random().toString(16).slice(3)}`,
     clean: true,
     connectTimeout: 4000,
     reconnectPeriod: 1000,
@@ -63,6 +69,10 @@ console.log(`   Client ID: ${mqttConfig.options.clientId}`);
 
 const client = mqtt.connect(mqttConfig.brokerUrl, mqttConfig.options);
 
+// Auto-publish interval (optional - simulates ESP32 sending data periodically)
+let autoPublishInterval = null;
+const AUTO_PUBLISH_INTERVAL = 30000; // 30 seconds (adjust as needed)
+
 client.on("connect", () => {
   console.log("✅ Mock Hardware: Connected to MQTT broker");
   
@@ -72,25 +82,94 @@ client.on("connect", () => {
       console.error("❌ Mock Hardware: Subscription error:", err);
     } else {
       console.log(`📡 Mock Hardware: Subscribed to command topic: ${mqttConfig.topics.command}`);
-      console.log(`\n🎭 Mock Hardware is now listening for commands...`);
-      console.log(`   Waiting for REQUEST_DATA commands...\n`);
+      console.log(`\n🎭 Mock Hardware (ESP32 Simulator) is now listening for commands...`);
+      console.log(`   Supported commands:`);
+      console.log(`   - String: "start", "stop", "spray"`);
+      console.log(`   - JSON: { "action": "REQUEST_DATA" }`);
+      console.log(`   - JSON: { "action": "START_CLEANING" }`);
+      console.log(`   - JSON: { "action": "ALERT" }`);
+      console.log(`   `);
+      console.log(`   Publishing sensor data to: ${mqttConfig.topics.sensorData}`);
+      console.log(`   Auto-publishing sensor data every ${AUTO_PUBLISH_INTERVAL / 1000} seconds\n`);
+      
+      // Start auto-publishing sensor data (simulates ESP32 sending data periodically)
+      autoPublishInterval = setInterval(() => {
+        const sensorData = generateMockSensorData();
+        const payload = JSON.stringify(sensorData);
+        client.publish(mqttConfig.topics.sensorData, payload, { qos: 1 }, (err) => {
+          if (err) {
+            console.error(`❌ Mock Hardware: Auto-publish failed:`, err);
+          } else {
+            console.log(`📊 Mock Hardware: Auto-published sensor data (${new Date().toLocaleTimeString()})`);
+          }
+        });
+      }, AUTO_PUBLISH_INTERVAL);
     }
   });
 });
 
 // Listen for commands
-client.on("message", async (topic, message) => {
+client.on("message", async (topic, payload) => {
   try {
-    const messageStr = message.toString();
+    const message = payload.toString();
     console.log(`\n📨 Mock Hardware: Received command on topic: ${topic}`);
-    console.log(`📦 Raw Command: ${messageStr}`);
+    console.log(`📦 Raw Command: ${message}`);
     
+    // Handle string commands (like "start", "stop", "spray")
+    if (typeof message === "string" && !message.startsWith("{")) {
+      console.log(`\n🎮 Mock Hardware: Received string command: "${message}"`);
+      
+      if (message === "start") {
+        console.log(`   ✅ Starting robot...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`   ✅ Robot started successfully\n`);
+        
+        // Optionally publish status
+        const status = {
+          command: "start",
+          status: "started",
+          timestamp: new Date().toISOString(),
+        };
+        client.publish(mqttConfig.topics.sensorData, JSON.stringify(status), { qos: 1 });
+        
+      } else if (message === "stop") {
+        console.log(`   🛑 Stopping robot...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`   ✅ Robot stopped successfully\n`);
+        
+        const status = {
+          command: "stop",
+          status: "stopped",
+          timestamp: new Date().toISOString(),
+        };
+        client.publish(mqttConfig.topics.sensorData, JSON.stringify(status), { qos: 1 });
+        
+      } else if (message === "spray") {
+        console.log(`   💧 Activating spray system...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`   ✅ Spray activated for 5 seconds\n`);
+        
+        const status = {
+          command: "spray",
+          status: "spraying",
+          duration: 5,
+          timestamp: new Date().toISOString(),
+        };
+        client.publish(mqttConfig.topics.sensorData, JSON.stringify(status), { qos: 1 });
+        
+      } else {
+        console.log(`   ⚠️ Unknown string command: "${message}"\n`);
+      }
+      return;
+    }
+    
+    // Handle JSON commands
     let command;
     try {
-      command = JSON.parse(messageStr);
+      command = JSON.parse(message);
       console.log(`✅ Parsed Command:`, JSON.stringify(command, null, 2));
     } catch (parseError) {
-      console.log(`⚠️ Command is not JSON, ignoring...`);
+      console.log(`⚠️ Command is not valid JSON or string, ignoring...\n`);
       return;
     }
     
@@ -180,17 +259,27 @@ client.on("reconnect", () => {
 // Handle graceful shutdown
 process.on("SIGINT", () => {
   console.log("\n🛑 Mock Hardware: Shutting down gracefully...");
+  
+  // Clear auto-publish interval
+  if (autoPublishInterval) {
+    clearInterval(autoPublishInterval);
+    console.log("   Stopped auto-publish interval");
+  }
+  
   client.end();
   process.exit(0);
 });
 
 console.log("\n🎭 =========================================");
-console.log("   MOCK HARDWARE SIMULATOR");
+console.log("   ESP32 MOCK HARDWARE SIMULATOR");
 console.log("   =========================================");
-console.log("   This script simulates a hardware device");
+console.log("   This script simulates an ESP32 device");
 console.log("   that responds to MQTT commands.");
 console.log("   ");
+console.log("   Broker: broker.emqx.io");
+console.log("   Topics: esp32/sensor_data, esp32/command");
+console.log("   ");
 console.log("   Keep this running alongside your backend");
-console.log("   to test MQTT request/response flow.");
+console.log("   to test MQTT communication with ESP32.");
 console.log("   =========================================\n");
 

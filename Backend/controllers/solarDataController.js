@@ -2,6 +2,7 @@ import SolarData from "../models/SolarData.js";
 import Notification from "../models/Notification.js";
 import { getPrediction, checkMLServerHealth } from "../services/mlService.js";
 import { io } from "../server.js";
+import mqttService from "../services/mqttService.js";
 
 // Get all solar data with pagination
 export const getSolarData = async (req, res) => {
@@ -394,6 +395,66 @@ export const exportSolarData = async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: "Failed to export data" 
+    });
+  }
+};
+
+// Get latest MQTT message from ESP32
+export const getLatestMQTTMessage = async (req, res) => {
+  try {
+    const latestMessage = mqttService.getLatestMessage();
+    
+    if (!latestMessage) {
+      return res.status(200).json({
+        status: "success",
+        message: "No data received yet from ESP32",
+      });
+    }
+    
+    res.status(200).json({
+      status: "success",
+      timestamp: latestMessage.timestamp,
+      data: latestMessage.data,
+    });
+  } catch (err) {
+    console.error("Error fetching latest MQTT message:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch latest MQTT message",
+    });
+  }
+};
+
+// Send command to ESP32 (start / stop / spray)
+export const sendCommandToESP32 = async (req, res) => {
+  try {
+    const { command } = req.body;
+    
+    if (!command) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing command",
+      });
+    }
+
+    const result = mqttService.publishCommand(command);
+    
+    if (!result) {
+      return res.status(500).json({
+        status: "error",
+        message: "Failed to send command - MQTT not connected",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      sent: command,
+    });
+  } catch (err) {
+    console.error("Error sending command:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send command",
     });
   }
 };

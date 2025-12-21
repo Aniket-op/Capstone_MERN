@@ -8,29 +8,30 @@ class MQTTService {
     this.client = null;
     this.isConnected = false;
     this.pendingRequests = new Map(); // Track sent requests
+    this.latestMessage = null; // Store latest message for /latest endpoint
   }
 
   // Connect to MQTT broker
   connect() {
-    console.log("🔌 Connecting to MQTT broker...");
+    console.log(`🔌 Connecting to MQTT broker: ${mqttConfig.brokerUrl}`);
     
     this.client = mqtt.connect(mqttConfig.brokerUrl, mqttConfig.options);
 
     this.client.on("connect", () => {
-      console.log("✅ Connected to MQTT broker");
+      console.log(`✅ Connected to MQTT broker: ${mqttConfig.brokerUrl}`);
       this.isConnected = true;
 
-      // Subscribe to sensor data topic
+      // Subscribe to sensor data topic (ESP32 publishes here)
       this.client.subscribe(mqttConfig.topics.sensorData, (err) => {
         if (err) {
-          console.error("❌ MQTT subscription error:", err);
+          console.error("❌ Subscribe error:", err);
         } else {
-          console.log(`📡 Subscribed to: ${mqttConfig.topics.sensorData}`);
+          console.log(`📡 Subscribed to '${mqttConfig.topics.sensorData}'`);
         }
       });
 
       // Subscribe to response topic (if hardware publishes responses)
-      const responseTopic = mqttConfig.topics.response || "solar/response";
+      const responseTopic = mqttConfig.topics.response || "esp32/response";
       this.client.subscribe(responseTopic, (err) => {
         if (err) {
           console.error("❌ MQTT response subscription error:", err);
@@ -40,68 +41,64 @@ class MQTTService {
       });
     });
 
-    this.client.on("message", async (topic, message) => {
+    this.client.on("message", async (topic, payload) => {
+      const message = payload.toString();
+      console.log(`📩 Message from [${topic}]: ${message}`);
+
       try {
-        const messageStr = message.toString();
-        const timestamp = new Date().toISOString();
-        
-        console.log(`\n📨 ===== MQTT MESSAGE RECEIVED =====`);
-        console.log(`📅 Timestamp: ${timestamp}`);
-        console.log(`📌 Topic: ${topic}`);
-        console.log(`📦 Raw Message: ${messageStr}`);
-        
         // Try to parse as JSON
-        let parsedData;
+        let data;
         try {
-          parsedData = JSON.parse(messageStr);
-          console.log(`✅ Parsed JSON:`, JSON.stringify(parsedData, null, 2));
-        } catch (parseError) {
-          console.log(`⚠️ Message is not JSON, raw text: ${messageStr}`);
-          parsedData = { raw: messageStr };
+          data = JSON.parse(message);
+        } catch (e) {
+          console.warn("⚠️ Non-JSON message received:", message);
+          // Store raw message
+          this.latestMessage = {
+            topic,
+            data: { raw: message },
+            timestamp: new Date().toLocaleString(),
+          };
+          return;
         }
 
+        // Store latest message for /latest endpoint
+        this.latestMessage = {
+          topic,
+          data,
+          timestamp: new Date().toLocaleString(),
+        };
+
         // Check if this is a response to a request
-        if (parsedData.requestId || parsedData.responseTo) {
-          const requestId = parsedData.requestId || parsedData.responseTo;
+        if (data.requestId || data.responseTo) {
+          const requestId = data.requestId || data.responseTo;
           const pendingRequest = this.pendingRequests.get(requestId);
           
           if (pendingRequest) {
             const responseTime = Date.now() - pendingRequest.sentAt;
-            console.log(`\n🔄 RESPONSE TO REQUEST:`);
-            console.log(`   Request ID: ${requestId}`);
-            console.log(`   Original Command: ${JSON.stringify(pendingRequest.command)}`);
-            console.log(`   Response Time: ${responseTime}ms`);
-            console.log(`   Response Data:`, parsedData);
-            
-            // Remove from pending
+            console.log(`🔄 Response to request ${requestId} (${responseTime}ms)`);
             this.pendingRequests.delete(requestId);
           }
         }
 
-        // Handle sensor data topic
+        // Handle sensor data topic (ESP32 publishes here)
         if (topic === mqttConfig.topics.sensorData) {
-          console.log(`\n📊 Processing as Sensor Data...`);
-          const sensorData = parsedData;
-          console.log("📊 Sensor Data received:", JSON.stringify(sensorData, null, 2));
-
+          console.log("📊 Processing sensor data from ESP32...");
+          
           // Process data (save to DB + ML prediction)
           try {
-            await processSensorData(sensorData);
+            await processSensorData(data);
             console.log("✅ Sensor data processed successfully");
           } catch (processError) {
             console.error("❌ Error in processSensorData:", processError);
           }
         } else if (topic.includes("response")) {
-          console.log(`\n💬 This is a response message`);
-          // You can add specific response handling here
+          console.log("💬 Response message received");
         }
-        
-        console.log(`📨 ===== END MESSAGE =====\n`);
         
       } catch (error) {
         console.error("❌ Error processing MQTT message:", error);
         console.error("   Topic:", topic);
-        console.error("   Message:", message.toString());
+        console.error("   Message:", message);
       }
     });
 
@@ -120,56 +117,61 @@ class MQTTService {
     });
   }
 
-  // Publish command to hardware
+  // Publish command to hardware (supports both string and object commands)
   publishCommand(command) {
     if (!this.isConnected) {
       console.error("❌ MQTT not connected");
       return false;
     }
 
-    // Add request ID and timestamp to track responses
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const commandWithId = {
-      ...command,
-      requestId: requestId,
-      sentAt: new Date().toISOString()
-    };
-
-    // Store pending request
-    this.pendingRequests.set(requestId, {
-      command: command,
-      sentAt: Date.now(),
-      timestamp: new Date().toISOString()
-    });
-
-    const payload = JSON.stringify(commandWithId);
     const topic = mqttConfig.topics.command;
+    let payload;
     
-    console.log(`\n📤 ===== PUBLISHING MQTT COMMAND =====`);
-    console.log(`📌 Topic: ${topic}`);
-    console.log(`🆔 Request ID: ${requestId}`);
-    console.log(`📦 Payload:`, JSON.stringify(commandWithId, null, 2));
+    // If command is a string (like "start", "stop", "spray"), send as-is
+    if (typeof command === "string") {
+      payload = command;
+      console.log(`📤 Command sent to ESP32: ${command}`);
+    } else {
+      // If command is an object, add request ID and timestamp
+      const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const commandWithId = {
+        ...command,
+        requestId: requestId,
+        sentAt: new Date().toISOString()
+      };
+
+      // Store pending request
+      this.pendingRequests.set(requestId, {
+        command: command,
+        sentAt: Date.now(),
+        timestamp: new Date().toISOString()
+      });
+
+      payload = JSON.stringify(commandWithId);
+      console.log(`📤 Command sent to ESP32:`, JSON.stringify(commandWithId, null, 2));
+      
+      // Set timeout to remove pending request after 30 seconds if no response
+      setTimeout(() => {
+        if (this.pendingRequests.has(requestId)) {
+          console.log(`⏰ Timeout: No response received for Request ID: ${requestId}`);
+          this.pendingRequests.delete(requestId);
+        }
+      }, 30000);
+    }
     
     this.client.publish(topic, payload, { qos: 1 }, (err) => {
       if (err) {
-        console.error(`❌ Failed to publish command:`, err);
-        this.pendingRequests.delete(requestId);
-      } else {
-        console.log(`✅ Command published successfully`);
-        console.log(`⏳ Waiting for response (Request ID: ${requestId})...`);
-        console.log(`📤 ===== END PUBLISH =====\n`);
-        
-        // Set timeout to remove pending request after 30 seconds if no response
-        setTimeout(() => {
-          if (this.pendingRequests.has(requestId)) {
-            console.log(`⏰ Timeout: No response received for Request ID: ${requestId}`);
-            this.pendingRequests.delete(requestId);
-          }
-        }, 30000);
+        console.error("❌ Publish error:", err);
+        return false;
       }
     });
 
-    return requestId;
+    return true;
+  }
+
+  // Get latest message (for /latest endpoint)
+  getLatestMessage() {
+    return this.latestMessage;
   }
 
   // Disconnect

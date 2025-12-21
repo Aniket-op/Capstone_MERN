@@ -44,7 +44,7 @@ const Dashboard = () => {
     // Listen for ML server messages
     socket.on("mlMessage", (data) => {
       console.log("📨 ML Message received:", data);
-
+      
       // Determine toast type based on status
       let toastType = "info";
       if (data.status === "red") toastType = "error";
@@ -105,7 +105,7 @@ const Dashboard = () => {
           },
         }
       );
-
+      
       if (response.data?.success) {
         setTodayStats({
           todayYield: response.data.todayYield || 0,
@@ -119,27 +119,27 @@ const Dashboard = () => {
   };
 
   // Fetch data function
-  const fetchData = async () => {
-    try {
+    const fetchData = async () => {
+      try {
       // Fetch real data from database (not demo data)
       const response = await axios.get(
         "http://localhost:5000/api/solar?limit=100",
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
       
       // Handle API response format: {success: true, data: [...]}
       const data = response.data?.data || response.data || [];
-      setSolarData(data);
+        setSolarData(data);
       if (data.length > 0) {
         // Get the most recent record (first in sorted array)
         setLatest(data[0]);
       }
       console.log("✅ Fetched solar data:", data.length, "records");
-    } catch (err) {
+      } catch (err) {
       console.error("❌ Error fetching solar data:", err.response?.data || err.message);
       // Fallback to demo data if real data fails
       try {
@@ -158,13 +158,13 @@ const Dashboard = () => {
   useEffect(() => {
     fetchData();
     fetchTodayStats();
-
+    
     // Poll for updates every 5 seconds
     const interval = setInterval(() => {
       fetchData();
       fetchTodayStats();
     }, 5000);
-
+    
     return () => {
       clearInterval(interval);
     };
@@ -246,14 +246,14 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="index" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px'
-                  }}
+                  }} 
                 />
-                <Legend
+                <Legend 
                   wrapperStyle={{ paddingTop: '20px' }}
                   iconType="circle"
                 />
@@ -283,14 +283,14 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="index" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px'
-                  }}
+                  }} 
                 />
-                <Legend
+                <Legend 
                   wrapperStyle={{ paddingTop: '20px' }}
                   iconType="circle"
                 />
@@ -315,14 +315,14 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="index" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px'
-                  }}
+                  }} 
                 />
-                <Legend
+                <Legend 
                   wrapperStyle={{ paddingTop: '20px' }}
                   iconType="circle"
                 />
@@ -338,22 +338,22 @@ const Dashboard = () => {
 
           <ChartCard title="Power Generation Prediction" subtitle="AI-powered forecasting">
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={solarData.map((d, i) => ({
-                ...d,
+              <LineChart data={solarData.map((d, i) => ({ 
+                ...d, 
                 index: i + 1,
                 predicted: d.powerPredicted || (d.powerGeneration * 0.98)
               }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="index" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px'
-                  }}
+                  }} 
                 />
-                <Legend
+                <Legend 
                   wrapperStyle={{ paddingTop: '20px' }}
                   iconType="line"
                 />
@@ -391,17 +391,17 @@ const Dashboard = () => {
             </div>
             <div className="bg-white shadow rounded-xl p-6 text-center">
               <h2 className="text-3xl font-bold text-blue-600 mb-2">
-                {todayStats.todayYield > 0
-                  ? `${todayStats.todayYield.toFixed(2)} kWh`
-                  : latest?.dailyYield
-                    ? `${latest.dailyYield.toFixed(2)} kWh`
+                {todayStats.todayYield > 0 
+                  ? `${todayStats.todayYield.toFixed(2)} kWh` 
+                  : latest?.dailyYield 
+                    ? `${latest.dailyYield.toFixed(2)} kWh` 
                     : "0.00 kWh"}
               </h2>
               <p className="text-gray-500 text-sm">Today's Yield</p>
             </div>
             <div className="bg-white shadow rounded-xl p-6 text-center">
               <h2 className="text-3xl font-bold text-orange-600 mb-2">
-                {todayStats.lastCleaningDays !== null
+                {todayStats.lastCleaningDays !== null 
                   ? `Last: ${todayStats.lastCleaningDays} ${todayStats.lastCleaningDays === 1 ? 'day' : 'days'} ago`
                   : latest?.cleaningDays !== undefined && latest.cleaningDays !== null
                     ? `Last: ${latest.cleaningDays} ${latest.cleaningDays === 1 ? 'day' : 'days'} ago`
