@@ -123,6 +123,20 @@ app.get("/latest", (req, res) => {
   });
 });
 
+// Get latest solar panel data from ESP8266
+app.get("/solar/latest", (req, res) => {
+  const latestSolarData = mqttService.getLatestSolarData();
+  if (!latestSolarData) {
+    return res.json({ message: "No solar data received yet" });
+  }
+  
+  res.status(200).json({
+    status: "success",
+    timestamp: latestSolarData.timestamp,
+    data: latestSolarData,
+  });
+});
+
 app.post("/command", (req, res) => {
   const { command } = req.body;
   if (!command) {

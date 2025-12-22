@@ -9,6 +9,8 @@ class MQTTService {
     this.isConnected = false;
     this.pendingRequests = new Map(); // Track sent requests
     this.latestMessage = null; // Store latest message for /latest endpoint
+    this.latestSolarData = null; // Store latest solar panel data from ESP8266
+    this.pendingDataCollection = null; // Track data collection when command is sent
   }
 
   // Connect to MQTT broker
@@ -37,6 +39,15 @@ class MQTTService {
           console.error("❌ MQTT response subscription error:", err);
         } else {
           console.log(`📡 Subscribed to response topic: ${responseTopic}`);
+        }
+      });
+
+      // Subscribe to solar data topic (ESP8266 publishes here)
+      this.client.subscribe(mqttConfig.topics.solarData, (err) => {
+        if (err) {
+          console.error("❌ Solar subscribe error:", err);
+        } else {
+          console.log(`☀️ Subscribed to '${mqttConfig.topics.solarData}'`);
         }
       });
     });
@@ -84,14 +95,58 @@ class MQTTService {
         if (topic === mqttConfig.topics.sensorData) {
           console.log("📊 Processing sensor data from ESP32...");
           
-          // Process data (save to DB + ML prediction)
-          try {
-            await processSensorData(data);
-            console.log("✅ Sensor data processed successfully");
-          } catch (processError) {
-            console.error("❌ Error in processSensorData:", processError);
+          // Check if we're waiting for combined data (command was sent)
+          if (this.pendingDataCollection && !this.pendingDataCollection.esp32Data) {
+            // Store ESP32 data (humidity, module_temp) for combination
+            this.pendingDataCollection.esp32Data = {
+              humidity: data.humidity,
+              module_temp: data.module_temp || data.moduleTemperature,
+              dailyYield: data.dailyYield,
+              cleaningDays: data.cleaningDays,
+            };
+            console.log("📦 ESP32 data stored for combination:", this.pendingDataCollection.esp32Data);
+            
+            // Check if we have both ESP8266 and ESP32 data
+            this.checkAndProcessCombinedData();
+          } else if (!this.pendingDataCollection) {
+            // Normal processing (no pending command - process ESP32 data as-is)
+            try {
+              await processSensorData(data);
+              console.log("✅ Sensor data processed successfully");
+            } catch (processError) {
+              console.error("❌ Error in processSensorData:", processError);
+            }
           }
-        } else if (topic.includes("response")) {
+        } 
+        // Handle solar panel data topic (ESP8266 publishes here)
+        else if (topic === mqttConfig.topics.solarData) {
+          console.log("☀️ Processing solar panel data from ESP8266...");
+          
+          // Store latest solar data
+          this.latestSolarData = {
+            voltage: data.voltage,
+            current: data.current,
+            power: data.power,
+            timestamp: new Date().toLocaleString(),
+          };
+          
+          console.log("✅ Solar data stored:", this.latestSolarData);
+          
+          // Check if we're waiting for combined data (command was sent)
+          if (this.pendingDataCollection && !this.pendingDataCollection.esp8266Data) {
+            // Store ESP8266 data (voltage, current, power) for combination
+            this.pendingDataCollection.esp8266Data = {
+              voltage: data.voltage,
+              current: data.current,
+              power: data.power,
+            };
+            console.log("📦 ESP8266 data stored for combination:", this.pendingDataCollection.esp8266Data);
+            
+            // Check if we have both ESP8266 and ESP32 data
+            this.checkAndProcessCombinedData();
+          }
+        } 
+        else if (topic.includes("response")) {
           console.log("💬 Response message received");
         }
         
@@ -126,6 +181,27 @@ class MQTTService {
 
     const topic = mqttConfig.topics.command;
     let payload;
+    
+    // Initialize pending data collection to wait for both ESP8266 and ESP32 responses
+    this.pendingDataCollection = {
+      command: command,
+      esp8266Data: null, // Will store: voltage, current, power
+      esp32Data: null,   // Will store: humidity, module_temp
+      sentAt: Date.now(),
+      timeout: null,
+    };
+    
+    console.log("🔄 Waiting for combined data from ESP8266 and ESP32...");
+    
+    // Set timeout to clear pending collection after 10 seconds
+    this.pendingDataCollection.timeout = setTimeout(() => {
+      if (this.pendingDataCollection) {
+        console.log("⏰ Timeout: Did not receive both ESP8266 and ESP32 data within 10 seconds");
+        console.log("   ESP8266 data:", this.pendingDataCollection.esp8266Data ? "received" : "missing");
+        console.log("   ESP32 data:", this.pendingDataCollection.esp32Data ? "received" : "missing");
+        this.pendingDataCollection = null;
+      }
+    }, 10000);
     
     // If command is a string (like "start", "stop", "spray"), send as-is
     if (typeof command === "string") {
@@ -169,9 +245,59 @@ class MQTTService {
     return true;
   }
 
+  // Check if we have both ESP8266 and ESP32 data, then process combined data
+  async checkAndProcessCombinedData() {
+    if (!this.pendingDataCollection) {
+      return;
+    }
+
+    const { esp8266Data, esp32Data } = this.pendingDataCollection;
+
+    // Check if we have both datasets
+    if (esp8266Data && esp32Data) {
+      console.log("✅ Both ESP8266 and ESP32 data received!");
+      console.log("📦 ESP8266 data:", esp8266Data);
+      console.log("📦 ESP32 data:", esp32Data);
+
+      // Clear timeout
+      if (this.pendingDataCollection.timeout) {
+        clearTimeout(this.pendingDataCollection.timeout);
+      }
+
+      // Combine data: ESP8266 (voltage, current, power) + ESP32 (humidity, module_temp)
+      const combinedData = {
+        voltage: esp8266Data.voltage,
+        current: esp8266Data.current,
+        power: esp8266Data.power,
+        humidity: esp32Data.humidity,
+        module_temp: esp32Data.module_temp,
+        dailyYield: esp32Data.dailyYield || 0,
+        cleaningDays: esp32Data.cleaningDays || 0,
+      };
+
+      console.log("🔄 Processing combined data:", JSON.stringify(combinedData, null, 2));
+
+      // Process combined data (save to DB + ML prediction)
+      try {
+        await processSensorData(combinedData);
+        console.log("✅ Combined data processed successfully");
+      } catch (processError) {
+        console.error("❌ Error in processSensorData:", processError);
+      }
+
+      // Clear pending collection
+      this.pendingDataCollection = null;
+    }
+  }
+
   // Get latest message (for /latest endpoint)
   getLatestMessage() {
     return this.latestMessage;
+  }
+
+  // Get latest solar data (for /solar/latest endpoint)
+  getLatestSolarData() {
+    return this.latestSolarData;
   }
 
   // Disconnect

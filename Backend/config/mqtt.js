@@ -16,6 +16,7 @@ const mqttConfig = {
     sensorData: process.env.MQTT_TOPIC_SENSOR || "esp32/sensor_data", // ESP32 publishes here
     command: process.env.MQTT_TOPIC_COMMAND || "esp32/command", // Server sends control commands
     response: process.env.MQTT_TOPIC_RESPONSE || "esp32/response",
+    solarData: process.env.MQTT_TOPIC_SOLAR || "esp8266/solar_data", // ESP8266 publishes solar panel data here
   },
   options: {
     clientId: `server_${Math.random().toString(16).slice(3)}`,
