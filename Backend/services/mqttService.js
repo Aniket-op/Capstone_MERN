@@ -10,6 +10,7 @@ class MQTTService {
     this.pendingRequests = new Map(); // Track sent requests
     this.latestMessage = null; // Store latest message for /latest endpoint
     this.latestSolarData = null; // Store latest solar panel data from ESP8266
+    this.latestSolarDataTimestamp = null; // Track when ESP8266 data was received
     this.pendingDataCollection = null; // Track data collection when command is sent
   }
 
@@ -55,14 +56,17 @@ class MQTTService {
     this.client.on("message", async (topic, payload) => {
       const message = payload.toString();
       console.log(`📩 Message from [${topic}]: ${message}`);
+      console.log(`   Topic length: ${topic.length}, Payload length: ${message.length}`);
 
       try {
         // Try to parse as JSON
         let data;
         try {
           data = JSON.parse(message);
+          console.log(`   ✅ Parsed JSON successfully`);
         } catch (e) {
           console.warn("⚠️ Non-JSON message received:", message);
+          console.warn(`   Parse error: ${e.message}`);
           // Store raw message
           this.latestMessage = {
             topic,
@@ -121,6 +125,7 @@ class MQTTService {
         // Handle solar panel data topic (ESP8266 publishes here)
         else if (topic === mqttConfig.topics.solarData) {
           console.log("☀️ Processing solar panel data from ESP8266...");
+          console.log(`   Received data: voltage=${data.voltage}, current=${data.current}, power=${data.power}`);
           
           // Store latest solar data
           this.latestSolarData = {
@@ -129,8 +134,9 @@ class MQTTService {
             power: data.power,
             timestamp: new Date().toLocaleString(),
           };
+          this.latestSolarDataTimestamp = Date.now(); // Track when data was received
           
-          console.log("✅ Solar data stored:", this.latestSolarData);
+          console.log("✅ Solar data stored:", JSON.stringify(this.latestSolarData, null, 2));
           
           // Check if we're waiting for combined data (command was sent)
           if (this.pendingDataCollection && !this.pendingDataCollection.esp8266Data) {
@@ -193,12 +199,31 @@ class MQTTService {
     
     console.log("🔄 Waiting for combined data from ESP8266 and ESP32...");
     
+    // If we have recent ESP8266 data (within last 30 seconds), use it immediately
+    // This handles the case where ESP8266 publishes periodically but doesn't respond to commands
+    if (this.latestSolarData && this.latestSolarDataTimestamp) {
+      const dataAge = Date.now() - this.latestSolarDataTimestamp;
+      if (dataAge < 30000) { // 30 seconds
+        console.log(`📦 Using recent ESP8266 data (${Math.round(dataAge / 1000)}s old)`);
+        this.pendingDataCollection.esp8266Data = {
+          voltage: this.latestSolarData.voltage,
+          current: this.latestSolarData.current,
+          power: this.latestSolarData.power,
+        };
+      } else {
+        console.log(`⚠️ ESP8266 data is too old (${Math.round(dataAge / 1000)}s), waiting for new data...`);
+      }
+    }
+    
     // Set timeout to clear pending collection after 10 seconds
     this.pendingDataCollection.timeout = setTimeout(() => {
       if (this.pendingDataCollection) {
         console.log("⏰ Timeout: Did not receive both ESP8266 and ESP32 data within 10 seconds");
         console.log("   ESP8266 data:", this.pendingDataCollection.esp8266Data ? "received" : "missing");
         console.log("   ESP32 data:", this.pendingDataCollection.esp32Data ? "received" : "missing");
+        
+        // If we have ESP8266 data but not ESP32, we can still process with what we have
+        // or just clear and wait for next attempt
         this.pendingDataCollection = null;
       }
     }, 10000);

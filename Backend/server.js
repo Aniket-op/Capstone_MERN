@@ -163,6 +163,26 @@ app.get("/", (req, res) => {
   });
 });
 
+// Debug endpoint for MQTT troubleshooting
+app.get("/debug/mqtt", (req, res) => {
+  res.json({
+    mqttConnection: {
+      isConnected: mqttService.isConnected,
+      status: mqttService.isConnected ? "✅ Connected" : "❌ Disconnected",
+    },
+    latestMessages: {
+      esp32: mqttService.getLatestMessage(),
+      esp8266: mqttService.getLatestSolarData(),
+    },
+    subscribedTopics: {
+      sensorData: "esp32/sensor_data",
+      solarData: "esp8266/solar_data",
+      command: "esp32/command",
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -72,6 +72,7 @@ class TestHealthStatus:
     def test_get_history(self, api_url):
         """Test history retrieval"""
         response = requests.get(f"{api_url}/history")
+        response = requests.get(f"{api_url}/history")
         assert response.status_code == 200
         data = response.json()
         assert "recent_errors" in data
