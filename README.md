@@ -1,4 +1,8 @@
 screen shots of project
+<img width="1600" height="1131" alt="image" src="https://github.com/user-attachments/assets/54be90df-ddbb-46b3-a29e-527613ec569c" />
+
+[![Watch Video](https://img.icons8.com/color/48/000000/video.png)](https://drive.google.com/file/d/10XGSEy4FcZ6F_5d0u9NHCd8xQSCzO80G/view?usp=sharing)
+
 
 <img width="1278" height="1021" alt="image" src="https://github.com/user-attachments/assets/cac761d0-17a1-4377-9e0f-45f53995b2aa" />
 <img width="1276" height="1023" alt="image" src="https://github.com/user-attachments/assets/3eb6d342-68bb-4bc9-9629-346ade54357c" />
